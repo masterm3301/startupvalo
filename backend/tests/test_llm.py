@@ -90,3 +90,85 @@ def test_non_retryable_error_raises(monkeypatch):
     monkeypatch.setattr(litellm, "completion", bad)
     with pytest.raises(Exception, match="invalid key"):
         llm.run_agent("sys", "user")
+
+
+def test_parallel_tool_calls_respect_cap(monkeypatch):
+    """First response has 10 tool_calls; verify only 8 execute and final content is returned."""
+    invocations = []
+
+    def counting_tool(query=""):
+        invocations.append(query)
+        return "ok"
+
+    # First response: 10 parallel tool_calls
+    tool_calls_1 = [_tool_call("tool", '{"query": "q"}', id=f"call_{i}") for i in range(10)]
+    responses = [
+        _resp(tool_calls=tool_calls_1),
+        _resp(content="final report"),
+    ]
+
+    def fake_completion(**kwargs):
+        return responses.pop(0)
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = llm.run_agent(
+        "sys", "user",
+        tool_schemas=[{"type": "function", "function": {"name": "tool"}}],
+        tool_functions={"tool": counting_tool},
+    )
+
+    assert out == "final report"
+    assert len(invocations) == llm.MAX_TOOL_CALLS  # Should be 8, not 10
+
+
+def test_unknown_tool_feeds_error_back(monkeypatch):
+    """Unknown tool returns error message in tool response, doesn't raise."""
+    responses = [
+        _resp(tool_calls=[_tool_call("nope", '{}')]),
+        _resp(content="done despite unknown tool"),
+    ]
+    calls = []
+
+    def fake_completion(**kwargs):
+        calls.append(kwargs)
+        return responses.pop(0)
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = llm.run_agent(
+        "sys", "user",
+        tool_schemas=[{"type": "function", "function": {"name": "nope"}}],
+        tool_functions={},  # No tools registered
+    )
+
+    assert out == "done despite unknown tool"
+    tool_msgs = [m for m in calls[1]["messages"] if m["role"] == "tool"]
+    assert len(tool_msgs) == 1
+    assert tool_msgs[0]["content"].startswith("ERROR: unknown tool")
+
+
+def test_tool_exception_becomes_error_result(monkeypatch):
+    """Tool function raises exception; error is returned and loop continues."""
+    responses = [
+        _resp(tool_calls=[_tool_call("flaky", '{}')]),
+        _resp(content="final despite tool error"),
+    ]
+    calls = []
+
+    def fake_completion(**kwargs):
+        calls.append(kwargs)
+        return responses.pop(0)
+
+    def flaky_tool():
+        raise RuntimeError("flaky")
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = llm.run_agent(
+        "sys", "user",
+        tool_schemas=[{"type": "function", "function": {"name": "flaky"}}],
+        tool_functions={"flaky": flaky_tool},
+    )
+
+    assert out == "final despite tool error"
+    tool_msgs = [m for m in calls[1]["messages"] if m["role"] == "tool"]
+    assert len(tool_msgs) == 1
+    assert tool_msgs[0]["content"].startswith("ERROR: tool execution failed")

@@ -68,10 +68,19 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 args = {}
-            fn = (tool_functions or {}).get(name)
-            result = fn(**args) if fn else f"ERROR: unknown tool {name}"
-            if on_event:
-                detail = args.get("query") or args.get("url") or ""
-                on_event({"type": "tool_call", "tool": name, "detail": detail})
+            if tools_used >= MAX_TOOL_CALLS:
+                result = "ERROR: tool call limit reached; write your final report now."
+            else:
+                fn = (tool_functions or {}).get(name)
+                if fn is None:
+                    result = f"ERROR: unknown tool {name}"
+                else:
+                    try:
+                        result = fn(**args)
+                    except Exception as exc:
+                        result = f"ERROR: tool execution failed: {exc}"
+                if on_event:
+                    detail = args.get("query") or args.get("url") or ""
+                    on_event({"type": "tool_call", "tool": name, "detail": detail})
+                tools_used += 1
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
-            tools_used += 1
