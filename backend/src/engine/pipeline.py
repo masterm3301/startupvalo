@@ -8,31 +8,38 @@ from src.reporting.trace import TraceRecorder
 
 
 def _worker(name: str, pitch: str, q: queue.Queue) -> None:
-    reports = []
-    output = ""
-    for agent in AGENTS:
-        q.put({"type": "agent_active", "id": agent["id"]})
-        task = agent["task_template"].format(name=name, pitch=pitch)
-        if reports:
-            prior = "\n\n---\n\n".join(reports)
-            task += f"\n\nReports from earlier analysts:\n\n{prior}"
+    # The outer try guarantees a terminal event on the queue no matter what
+    # raises — otherwise run_valuation's q.get() would block forever.
+    agent_id = "pipeline"
+    try:
+        reports = []
+        output = ""
+        for agent in AGENTS:
+            agent_id = agent["id"]
+            q.put({"type": "agent_active", "id": agent_id})
+            task = agent["task_template"].format(name=name, pitch=pitch)
+            if reports:
+                prior = "\n\n---\n\n".join(reports)
+                task += f"\n\nReports from earlier analysts:\n\n{prior}"
 
-        def on_event(event, agent_id=agent["id"]):
-            q.put({**event, "id": agent_id})
+            def on_event(event, agent_id=agent_id):
+                q.put({**event, "id": agent_id})
 
-        try:
-            output = llm.run_agent(
-                agent["system_prompt"], task,
-                tool_schemas=TOOL_SCHEMAS if agent["uses_tools"] else None,
-                tool_functions=TOOL_FUNCTIONS if agent["uses_tools"] else None,
-                on_event=on_event,
-            )
-        except Exception as exc:
-            q.put({"type": "agent_error", "id": agent["id"], "message": str(exc)})
-            return
-        reports.append(f"### {agent['name']}\n\n{output}")
-        q.put({"type": "agent_done", "id": agent["id"], "output": output})
-    q.put({"type": "complete", "memo": output})
+            try:
+                output = llm.run_agent(
+                    agent["system_prompt"], task,
+                    tool_schemas=TOOL_SCHEMAS if agent["uses_tools"] else None,
+                    tool_functions=TOOL_FUNCTIONS if agent["uses_tools"] else None,
+                    on_event=on_event,
+                )
+            except Exception as exc:
+                q.put({"type": "agent_error", "id": agent_id, "message": str(exc)})
+                return
+            reports.append(f"### {agent['name']}\n\n{output}")
+            q.put({"type": "agent_done", "id": agent_id, "output": output})
+        q.put({"type": "complete", "memo": output})
+    except Exception as exc:
+        q.put({"type": "agent_error", "id": agent_id, "message": str(exc)})
 
 
 def run_valuation(name: str, pitch: str, logs_dir=None):

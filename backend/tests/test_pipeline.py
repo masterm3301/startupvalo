@@ -60,3 +60,15 @@ def test_trace_file_written(monkeypatch, tmp_path):
     files = list(tmp_path.glob("agent-trace-*.md"))
     assert len(files) == 1
     assert "report text" in files[0].read_text()
+
+
+def test_worker_crash_still_terminates(monkeypatch, tmp_path):
+    broken_agent = {
+        "id": "x", "name": "X", "icon": "i", "color": "#fff",
+        "uses_tools": False, "system_prompt": "s",
+        "task_template": "bad {unexpected_placeholder}",
+    }
+    monkeypatch.setattr(pipeline, "AGENTS", [broken_agent])
+    monkeypatch.setattr(pipeline.llm, "run_agent", lambda *a, **k: "r")
+    events = list(pipeline.run_valuation("Acme", "p", logs_dir=tmp_path))
+    assert events[-1]["type"] == "agent_error"
