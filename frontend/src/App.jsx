@@ -53,14 +53,14 @@ export default function App() {
     }
   };
 
-  const start = async (name, pitch) => {
+  const start = async (name, deckFile) => {
     setAgents([]);
     setMemo("");
     setPhase("running");
     try {
-      await streamValuation(name, pitch, onEvent);
+      await streamValuation(name, deckFile, onEvent);
     } catch (err) {
-      setBanner(String(err));
+      setBanner(String(err.message || err));
       setPhase("form");
     }
   };

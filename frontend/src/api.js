@@ -9,13 +9,21 @@ export function parseSSE(buffer) {
   return [events, buffer];
 }
 
-export async function streamValuation(name, pitch, onEvent) {
-  const resp = await fetch("/api/valuation", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, pitch }),
-  });
-  if (!resp.ok) throw new Error(`Server error: HTTP ${resp.status}`);
+export async function streamValuation(name, deckFile, onEvent) {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("deck", deckFile);
+  const resp = await fetch("/api/valuation", { method: "POST", body: form });
+  if (!resp.ok) {
+    let detail = `Server error: HTTP ${resp.status}`;
+    try {
+      const body = await resp.json();
+      if (body.detail) detail = body.detail;
+    } catch {
+      // non-JSON error body; keep the generic message
+    }
+    throw new Error(detail);
+  }
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
