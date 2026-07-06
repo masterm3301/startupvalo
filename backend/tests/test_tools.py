@@ -42,6 +42,20 @@ def test_web_search_missing_key_returns_error(monkeypatch):
     assert tools.web_search("x").startswith("ERROR:")
 
 
+def test_web_search_invalid_json_returns_error(monkeypatch):
+    """Test that non-JSON response body is handled gracefully."""
+    monkeypatch.setenv("SERPER_API_KEY", "test-key")
+
+    class BadJsonResponse(FakeResponse):
+        def json(self):
+            raise ValueError("Invalid JSON")
+
+    fake = BadJsonResponse()
+    monkeypatch.setattr(tools.httpx, "post", lambda *a, **k: fake)
+    result = tools.web_search("x")
+    assert result.startswith("ERROR:"), f"Expected error message, got: {result}"
+
+
 def test_scrape_page_extracts_text_and_strips_chrome(monkeypatch):
     html = ("<html><head><style>x{}</style></head><body>"
             "<nav>menu</nav><p>Real   content here</p><footer>foot</footer></body></html>")

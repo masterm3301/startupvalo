@@ -21,9 +21,11 @@ def web_search(query: str) -> str:
             timeout=15,
         )
         resp.raise_for_status()
+        data = resp.json()
     except httpx.HTTPError as exc:
         return f"ERROR: search failed: {exc}"
-    data = resp.json()
+    except ValueError as exc:
+        return f"ERROR: search returned invalid JSON: {exc}"
     lines = []
     box = data.get("answerBox")
     if box:
