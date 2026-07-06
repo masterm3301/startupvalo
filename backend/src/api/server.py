@@ -18,7 +18,10 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 app = FastAPI(title="StartupValo")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

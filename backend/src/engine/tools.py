@@ -26,6 +26,8 @@ def web_search(query: str) -> str:
         return f"ERROR: search failed: {exc}"
     except ValueError as exc:
         return f"ERROR: search returned invalid JSON: {exc}"
+    if not isinstance(data, dict):
+        return f"ERROR: search returned unexpected JSON shape: {type(data).__name__}"
     lines = []
     box = data.get("answerBox")
     if box:

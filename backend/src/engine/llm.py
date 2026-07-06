@@ -8,12 +8,20 @@ import litellm
 MAX_TOOL_CALLS = 8
 MAX_RETRIES = 5
 MAX_MALFORMED_RETRIES = 3
+# Absolute ceiling on LLM calls per agent run. Guards against a provider that
+# returns tool_calls even when no tools were offered (the beyond-cap branch
+# below doesn't increment tools_used, so without this the `while True` loop
+# would spin forever).
+MAX_LLM_CALLS = 20
 
 # Groq/llama occasionally emits a pseudo tool-call as plain text (e.g.
 # "<function=web_search {...}>" or "<function(web_search){...}</function>")
 # instead of a real tool_calls entry. The API doesn't always reject this
 # itself (see MAX_RETRIES tool_use_failed handling below for when it does),
 # so we also have to detect it client-side when it slips through as content.
+# Note: this can false-positive on prose that happens to mention "<function"
+# without meaning it as a call; the blast radius is bounded because it only
+# triggers up to MAX_MALFORMED_RETRIES corrective retries, not an infinite loop.
 _FAKE_TOOL_CALL_RE = re.compile(r"<function\b", re.IGNORECASE)
 
 
@@ -58,7 +66,7 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
     ]
     tools_used = 0
     malformed_retries = 0
-    while True:
+    for _ in range(MAX_LLM_CALLS):
         kwargs = {"model": _model(), "messages": messages}
         if tool_schemas and tools_used < MAX_TOOL_CALLS:
             kwargs["tools"] = tool_schemas
@@ -95,6 +103,10 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 args = {}
+            # Beyond-cap, unknown-tool, and exception cases all still consume a
+            # cap slot and emit a tool_call event below — a deliberate,
+            # conservative anti-runaway choice rather than letting the loop
+            # retry these calls for free.
             if tools_used >= MAX_TOOL_CALLS:
                 result = "ERROR: tool call limit reached; write your final report now."
             else:
@@ -111,3 +123,6 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
                     on_event({"type": "tool_call", "tool": name, "detail": detail})
                 tools_used += 1
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+    # Ceiling reached: force a final answer with no tools offered.
+    msg = _completion_with_retry(model=_model(), messages=messages).choices[0].message
+    return msg.content or ""

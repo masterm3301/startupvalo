@@ -10,6 +10,8 @@ from src.reporting.trace import TraceRecorder
 def _worker(name: str, pitch: str, q: queue.Queue) -> None:
     # The outer try guarantees a terminal event on the queue no matter what
     # raises — otherwise run_valuation's q.get() would block forever.
+    # Synthetic id matching no UI card; only surfaces if something raises
+    # before the first agent id is assigned below.
     agent_id = "pipeline"
     try:
         reports = []

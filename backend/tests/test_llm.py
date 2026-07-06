@@ -174,6 +174,26 @@ def test_parallel_tool_calls_respect_cap(monkeypatch):
     assert len(invocations) == llm.MAX_TOOL_CALLS  # Should be 8, not 10
 
 
+def test_iteration_ceiling_prevents_infinite_loop(monkeypatch):
+    """If the provider always returns tool_calls, even once no tools were
+    offered (beyond MAX_TOOL_CALLS), the loop must not spin forever. It should
+    stop after MAX_LLM_CALLS iterations and force one final tool-less call."""
+    calls = []
+
+    def always_tool_calls(**kwargs):
+        calls.append(kwargs)
+        return _resp(tool_calls=[_tool_call("echo", '{"query": "again"}', id=f"call_{len(calls)}")])
+
+    monkeypatch.setattr(litellm, "completion", always_tool_calls)
+    out = llm.run_agent(
+        "sys", "user",
+        tool_schemas=[{"type": "function", "function": {"name": "echo"}}],
+        tool_functions={"echo": lambda query: "r"},
+    )
+    assert isinstance(out, str)
+    assert len(calls) <= llm.MAX_LLM_CALLS + 1
+
+
 def test_unknown_tool_feeds_error_back(monkeypatch):
     """Unknown tool returns error message in tool response, doesn't raise."""
     responses = [
