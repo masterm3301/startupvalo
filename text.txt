@@ -1,0 +1,21 @@
+StartupValo
+Goal: Build a functional multi-agent valuation engine called "startupvalo." The system should take a startup description/URL as input and generate a detailed valuation report based on market data, team strength, and financial benchmarks. The end result should be a running Python/CrewAI backend with a simple React dashboard to view the final Investment Memo.
+
+Create a team of 3 teammates using Sonnet:
+
+Lead Architect — Define the CrewAI structure in src/crew/. Create the specific roles and tasks for the "Skeptical Economist" (Market TAM) and the "CFO" (Unit Economics). When the logic is defined, message the Backend Dev with the required tool definitions (scrapers/APIs).
+
+Backend Dev — Build the FastAPI server in src/api/. Implement the integration with the CrewAI agents and set up the endpoints for submitting a startup for review. Wait for Lead Architect’s tool definitions to implement the actual search and analysis functions.
+
+Frontend Dev — Build the React UI in src/components/. Create a "Pitch Input" field and a dynamic "Valuation Dashboard" that displays the agents' progress in real-time and the final PDF/Markdown report.
+
+Final deliverables:
+
+A running app at http://localhost:3000 where I can input a startup idea and get a valuation.
+
+logs/agent-trace.md — A log of how the agents collaborated and where they pulled their data from.
+
+docs/valuation-logic.md — A summary of the multipliers and formulas used to calculate the final pre-money valuation.
+
+
+

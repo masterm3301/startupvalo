@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StartupValo — AI Valuation Engine</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070f;
+      --surface: #0d0d1a;
+      --card: #111120;
+      --border: #1c1c2e;
+      --border-mid: #252540;
+      --text-1: #f0f4ff;
+      --text-2: #8b96b8;
+      --text-3: #3a4060;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #f43f5e;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(7,7,15,0.92);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.0625rem;
+      letter-spacing: -0.02em;
+      color: var(--text-1);
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .pill {
+      font-size: 0.6875rem;
+      font-weight: 500;
+      padding: 0.2rem 0.65rem;
+      background: rgba(139,92,246,0.1);
+      color: #a78bfa;
+      border: 1px solid rgba(139,92,246,0.22);
+      border-radius: 999px;
+    }
+
+    /* ── Main ── */
+    main {
+      width: 100%;
+      max-width: 960px;
+      padding: 0 1.5rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 5rem 0 3.5rem;
+      text-align: center;
+      transition: padding 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .hero.compact { padding: 2.25rem 0 1.75rem; }
+
+    .eyebrow {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #a78bfa;
+      margin-bottom: 1.25rem;
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 5.5vw, 4rem);
+      font-weight: 800;
+      letter-spacing: -0.045em;
+      line-height: 1.06;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(135deg, #ffffff 35%, #6b7fa8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero.compact h1 { font-size: 1.75rem; letter-spacing: -0.03em; }
+
+    .hero-sub {
+      color: var(--text-2);
+      font-size: 1rem;
+      max-width: 460px;
+      line-height: 1.7;
+      margin-bottom: 2.75rem;
+    }
+
+    .hero.compact .hero-sub,
+    .hero.compact .eyebrow { display: none; }
+
+    /* ── Input ── */
+    .input-wrap {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .input-row {
+      width: 100%;
+      display: flex;
+      background: var(--surface);
+      border: 1.5px solid var(--border-mid);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-row:focus-within {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.16);
+    }
+
+    #startupInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      padding: 1rem 1.25rem;
+      font-size: 0.9375rem;
+      color: var(--text-1);
+      font-family: inherit;
+    }
+
+    #startupInput::placeholder { color: var(--text-3); }
+
+    #submitBtn {
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      border: none;
+      padding: 0 1.25rem;
+      cursor: pointer;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 52px;
+      transition: opacity 0.2s;
+      flex-shrink: 0;
+    }
+
+    #submitBtn:hover { opacity: 0.85; }
+    #submitBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: none;
+      align-items: center;
+      gap: 0.625rem;
+      font-size: 0.8125rem;
+      color: var(--text-2);
+    }
+
+    .status-bar.visible { display: flex; }
+
+    .sdot {
+      width: 7px;
+      height: 7px;
+      background: #a78bfa;
+      border-radius: 50%;
+      flex-shrink: 0;
+      animation: sdot 1.5s ease-in-out infinite;
+    }
+
+    @keyframes sdot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.25; transform: scale(0.65); }
+    }
+
+    /* ── Results ── */
+    #results {
+      display: none;
+      flex-direction: column;
+      gap: 2rem;
+      padding-bottom: 6rem;
+    }
+
+    #results.visible { display: flex; }
+
+    /* Section label */
+    .section-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 2-col analysis grid ── */
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      align-items: start;        /* key: rows don't stretch to equal height */
+    }
+
+    @media (max-width: 640px) { .analysis-grid { grid-template-columns: 1fr; } }
+
+    /* ── Agent card ── */
+    .agent-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--ac, #8b5cf6);
+      border-radius: 12px;
+      overflow: hidden;          /* clip left border radius */
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .agent-card.in {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .agent-card.active {
+      border-color: var(--ac, #8b5cf6);
+      box-shadow: 0 4px 32px rgba(0,0,0,0.4), 0 0 0 0 var(--ac, #8b5cf6);
+    }
+
+    /* Span sentiment card full width */
+    .agent-card.full { grid-column: 1 / -1; }
+
+    /* ── Card header ── */
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1.125rem 1.375rem 0;
+    }
+
+    .card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .card-meta { flex: 1; min-width: 0; }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-role {
+      font-size: 0.7rem;
+      color: var(--text-3);
+      margin-top: 1px;
+    }
+
+    .card-state {
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+      color: var(--text-3);
+      letter-spacing: 0.02em;
+    }
+
+    .card-state.running { color: var(--ac, #8b5cf6); }
+    .card-state.done    { color: var(--green); }
+
+    /* ── Divider ── */
+    .card-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 1rem 1.375rem 0;
+    }
+
+    /* ── Card body ── */
+    .card-body {
+      padding: 1rem 1.375rem 1.375rem;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      color: var(--text-2);
+    }
+
+    .card-body.idle {
+      color: var(--text-3);
+      font-style: italic;
+      font-size: 0.8125rem;
+    }
+
+    /* Typing dots while agent is running */
+    .typing {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .typing span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ac, #8b5cf6);
+      animation: tdot 1.4s ease-in-out infinite;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.18s; }
+    .typing span:nth-child(3) { animation-delay: 0.36s; }
+
+    @keyframes tdot {
+      0%, 80%, 100% { transform: scale(0.5); opacity: 0.3; }
+      40%            { transform: scale(1);   opacity: 1; }
+    }
+
+    /* Markdown inside cards */
+    .card-body strong { color: var(--text-1); font-weight: 600; }
+    .card-body em     { color: var(--text-2); }
+
+    .card-body p { margin-bottom: 0.65rem; }
+    .card-body p:last-child { margin-bottom: 0; }
+
+    .card-body ul,
+    .card-body ol { padding-left: 1.3rem; margin-bottom: 0.65rem; }
+    .card-body li  { margin-bottom: 0.3rem; }
+
+    .card-body h2 {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-1);
+      margin: 1.25rem 0 0.5rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-body h2:first-child { margin-top: 0; }
+
+    .card-body h3 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-1);
+      margin: 1rem 0 0.35rem;
+    }
+
+    .card-body hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0.75rem 0;
+    }
+
+    /* Inline key: value pattern — bold key, normal value */
+    .card-body strong + * { display: inline; }
+
+    /* ── Investment Committee card ── */
+    .memo-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .memo-card {
+      background: linear-gradient(160deg, #16102e 0%, #0e0e1c 60%);
+      border: 1px solid rgba(245,158,11,0.25) !important;
+      border-left: 4px solid var(--amber) !important;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .memo-card.active {
+      box-shadow: 0 8px 48px rgba(245,158,11,0.1) !important;
+    }
+
+    .memo-card .card-icon { background: rgba(245,158,11,0.1); }
+    .memo-card .card-divider { background: rgba(245,158,11,0.12); }
+
+    /* Verdict badges */
+    .vbadge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 1rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.9375rem;
+      letter-spacing: 0.06em;
+    }
+
+    .vbadge-invest { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+    .vbadge-watch  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .vbadge-pass   { background: rgba(244,63,94,0.12);  color: #fb7185; border: 1px solid rgba(244,63,94,0.25); }
+
+    /* Dollar amounts */
+    .dollar { color: #fbbf24; font-weight: 600; }
+
+    /* Valuation range row */
+    .val-range {
+      display: flex;
+      gap: 1px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 0.5rem 0;
+      background: var(--border);
+    }
+
+    .val-range-item {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .val-range-item .label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-3);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .val-range-item .amount {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #fbbf24;
+    }
+
+    /* Error */
+    .error-box {
+      background: rgba(244,63,94,0.07);
+      border: 1px solid rgba(244,63,94,0.2);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      color: #fb7185;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <div class="logo-icon">◆</div>
+    StartupValo
+  </a>
+  <span class="pill">CrewAI · 5 Agents + Committee</span>
+</header>
+
+<main>
+  <div class="hero" id="hero">
+    <div class="eyebrow">Investment Committee · Powered by CrewAI</div>
+    <h1>Instant Startup<br>Valuation</h1>
+    <p class="hero-sub">
+      Enter any startup name or idea. Five specialized AI agents analyze every angle —
+      team, market, moat, financials, and sentiment — then the Investment Committee
+      delivers a pre-money valuation and a final verdict.
+    </p>
+
+    <div class="input-wrap">
+      <form class="input-row" id="form" autocomplete="off">
+        <input
+          id="startupInput"
+          type="text"
+          placeholder="e.g. Stripe, Notion, or describe your startup…"
+          spellcheck="false"
+        />
+        <button type="submit" id="submitBtn" aria-label="Analyze">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </form>
+
+      <div class="status-bar" id="statusBar">
+        <div class="sdot"></div>
+        <span id="statusText">Assembling investment committee…</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="results">
+    <div>
+      <div class="section-label" id="analysisLabel">Specialist Analysis</div>
+      <div style="height:0.875rem"></div>
+      <div class="analysis-grid" id="analysisGrid"></div>
+    </div>
+
+    <div class="memo-section" id="memoSection" style="display:none">
+      <div class="section-label">Investment Committee — Final Memo</div>
+      <div id="memoSlot"></div>
+    </div>
+
+    <div id="errorSlot"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+  marked.setOptions({ breaks: true, gfm: true });
+
+  const form         = document.getElementById('form');
+  const input        = document.getElementById('startupInput');
+  const btn          = document.getElementById('submitBtn');
+  const hero         = document.getElementById('hero');
+  const results      = document.getElementById('results');
+  const analysisGrid = document.getElementById('analysisGrid');
+  const analysisLabel= document.getElementById('analysisLabel');
+  const memoSection  = document.getElementById('memoSection');
+  const memoSlot     = document.getElementById('memoSlot');
+  const errorSlot    = document.getElementById('errorSlot');
+  const statusBar    = document.getElementById('statusBar');
+  const statusText   = document.getElementById('statusText');
+
+  const cards = {};
+  const agentTexts = {};
+
+  const ROLES = {
+    talent:    'Lead Talent Scout',
+    market:    'Skeptical Economist',
+    moat:      'Competitive Intelligence Officer',
+    finance:   'Startup CFO',
+    sentiment: 'Market Sentiment Analyst',
+    memo:      'Investment Committee Chair',
+  };
+
+  // Which analysis cards span full width (the 5th one — sentiment)
+  const FULL_WIDTH = new Set(['sentiment']);
+
+  function buildCard(meta) {
+    const isMemo = meta.id === 'memo';
+    const card = document.createElement('div');
+    const classes = ['agent-card'];
+    if (isMemo) classes.push('memo-card');
+    if (FULL_WIDTH.has(meta.id)) classes.push('full');
+    card.className = classes.join(' ');
+    card.id = 'card-' + meta.id;
+    card.style.setProperty('--ac', meta.color);
+
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-icon">${meta.icon}</div>
+        <div class="card-meta">
+          <div class="card-title">${meta.name}</div>
+          <div class="card-role">${ROLES[meta.id] || ''}</div>
+        </div>
+        <div class="card-state" id="state-${meta.id}">Waiting</div>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-body idle" id="body-${meta.id}">
+        Waiting for previous agents…
+      </div>
+    `;
+    return card;
+  }
+
+  function postProcess(html, id) {
+    let out = html;
+
+    if (id === 'memo') {
+      // Replace **INVEST/WATCH/PASS** with styled badges
+      out = out
+        .replace(/<strong>INVEST<\/strong>/g, '<span class="vbadge vbadge-invest">✦ INVEST</span>')
+        .replace(/<strong>WATCH<\/strong>/g,  '<span class="vbadge vbadge-watch">◉ WATCH</span>')
+        .replace(/<strong>PASS<\/strong>/g,   '<span class="vbadge vbadge-pass">✕ PASS</span>');
+
+      // Parse valuation range from "Bear case: $X | Base case: $Y | Bull case: $Z"
+      out = out.replace(
+        /Bear case[^$]*(\$[\d,.]+[BMK]?)[^|]*\|[^$]*Base case[^$]*(\$[\d,.]+[BMK]?)[^|]*\|[^$]*Bull case[^$]*(\$[\d,.]+[BMK]?)/gi,
+        (_, bear, base, bull) => `
+          <div class="val-range">
+            <div class="val-range-item"><div class="label">Bear</div><div class="amount">${bear}</div></div>
+            <div class="val-range-item"><div class="label">Base</div><div class="amount">${base}</div></div>
+            <div class="val-range-item"><div class="label">Bull</div><div class="amount">${bull}</div></div>
+          </div>`
+      );
+    }
+
+    // Highlight all dollar amounts
+    out = out.replace(/(\$[\d,.]+ ?(?:[BMK]|billion|million|thousand)?(?:\s*–\s*\$[\d,.]+ ?(?:[BMK]|billion|million|thousand)?)?)/gi,
+      '<span class="dollar">$1</span>');
+
+    return out;
+  }
+
+  function handleEvent(ev) {
+    const { type, id } = ev;
+
+    if (type === 'agent_init') {
+      const isMemo = id === 'memo';
+      const card = buildCard(ev);
+      cards[id] = card;
+      agentTexts[id] = '';
+
+      if (isMemo) {
+        memoSlot.appendChild(card);
+      } else {
+        analysisGrid.appendChild(card);
+      }
+      const delay = Object.keys(cards).indexOf(id) * 60;
+      setTimeout(() => card.classList.add('in'), delay);
+
+    } else if (type === 'agent_active') {
+      const card  = document.getElementById('card-' + id);
+      const state = document.getElementById('state-' + id);
+      const body  = document.getElementById('body-' + id);
+      if (!card) return;
+
+      // Show memo section when committee starts
+      if (id === 'memo') memoSection.style.display = 'flex';
+
+      card.classList.add('active');
+      state.className = 'card-state running';
+      state.textContent = 'Analyzing…';
+      body.className = 'card-body';
+      body.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+
+      statusText.textContent = ev.name ? `${ev.name} is analyzing…` : 'Analyzing…';
+      setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+
+    } else if (type === 'chunk') {
+      agentTexts[id] = (agentTexts[id] || '') + ev.text;
+
+    } else if (type === 'agent_done') {
+      const card  = document.getElementById('card-' + id);
+      const state = document.getElementById('state-' + id);
+      const body  = document.getElementById('body-' + id);
+      if (!card) return;
+
+      card.classList.remove('active');
+      state.className = 'card-state done';
+      state.textContent = '✓ Done';
+      body.className = 'card-body';
+      const content = ev.output || agentTexts[id] || '';
+      body.innerHTML = postProcess(marked.parse(content), id);
+
+    } else if (type === 'complete') {
+      statusText.textContent = 'Analysis complete ✓';
+      setTimeout(() => statusBar.classList.remove('visible'), 2500);
+      btn.disabled = false;
+
+    } else if (type === 'error') {
+      errorSlot.innerHTML = `
+        <div class="error-box">
+          <strong>Error:</strong> ${ev.message || 'Unknown error'}
+          <br><small>Check your API key in .env</small>
+        </div>`;
+      statusBar.classList.remove('visible');
+      btn.disabled = false;
+    }
+  }
+
+  async function runValuation(name) {
+    btn.disabled = true;
+    hero.classList.add('compact');
+    results.classList.add('visible');
+    statusBar.classList.add('visible');
+    statusText.textContent = 'Assembling investment committee…';
+    analysisLabel.textContent = `Specialist Analysis — ${name}`;
+    memoSection.style.display = 'none';
+
+    analysisGrid.innerHTML = '';
+    memoSlot.innerHTML = '';
+    errorSlot.innerHTML = '';
+    Object.keys(cards).forEach(k => delete cards[k]);
+    Object.keys(agentTexts).forEach(k => delete agentTexts[k]);
+
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    try {
+      const res = await fetch('/api/valuation?name=' + encodeURIComponent(name));
+      if (!res.ok) {
+        errorSlot.innerHTML = `<div class="error-box"><strong>Server error ${res.status}</strong> — check your API key in .env</div>`;
+        statusBar.classList.remove('visible');
+        btn.disabled = false;
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop();
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue;
+          try { handleEvent(JSON.parse(part.slice(6))); } catch {}
+        }
+      }
+    } catch (err) {
+      errorSlot.innerHTML = `<div class="error-box"><strong>Connection error</strong> — is the server running?</div>`;
+      statusBar.classList.remove('visible');
+      btn.disabled = false;
+    }
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = input.value.trim();
+    if (name) runValuation(name);
+  });
+</script>
+</body>
+</html>
