@@ -85,3 +85,17 @@ def test_parser_deck_error_passes_through(monkeypatch):
     monkeypatch.setitem(deck._PARSERS, ".pptx", raising_parser)
     with pytest.raises(DeckError, match="specific parser message"):
         extract_deck_text("pitch.pptx", b"anything")
+
+
+def test_surrogates_stripped_from_extracted_text(monkeypatch):
+    from src.engine import deck
+
+    # pypdf can emit unpaired UTF-16 surrogates from PDFs with broken
+    # character maps; they crash any later UTF-8 encode (e.g. trace write)
+    monkeypatch.setitem(
+        deck._PARSERS, ".pdf",
+        lambda data: "Traction: 3 cities live \ud83d and growing fast. " * 10,
+    )
+    text = extract_deck_text("pitch.pdf", b"anything")
+    assert "3 cities" in text
+    text.encode("utf-8")  # must not raise: no lone surrogates survive

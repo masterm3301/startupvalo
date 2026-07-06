@@ -30,5 +30,7 @@ class TraceRecorder:
     def finish(self) -> Path:
         self.logs_dir.mkdir(parents=True, exist_ok=True)
         path = self.logs_dir / f"agent-trace-{self.started:%Y%m%d-%H%M%S}.md"
-        path.write_text("\n".join(self.lines))
+        # scraped/LLM text can carry unpaired surrogates; a log write must
+        # never crash the run that produced it
+        path.write_text("\n".join(self.lines), encoding="utf-8", errors="replace")
         return path

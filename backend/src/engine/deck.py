@@ -1,5 +1,6 @@
 """Extract pitch text from uploaded deck files (.pptx / .pdf)."""
 import io
+import re
 from pathlib import Path
 
 MAX_DECK_CHARS = 15_000
@@ -43,6 +44,10 @@ def _pdf_text(data: bytes) -> str:
 
 _PARSERS = {".pptx": _pptx_text, ".pdf": _pdf_text}
 
+# pypdf can emit unpaired UTF-16 surrogates from PDFs with broken character
+# maps; they are invalid in UTF-8 and crash any later encode (trace file, …).
+_SURROGATES_RE = re.compile(r"[\ud800-\udfff]")
+
 
 def extract_deck_text(filename: str, data: bytes) -> str:
     """Return the deck's readable text, or raise DeckError with a user-facing message."""
@@ -57,7 +62,7 @@ def extract_deck_text(filename: str, data: bytes) -> str:
             f"Unsupported file type {ext or '(none)'} — upload a .pptx or .pdf deck."
         )
     try:
-        text = parser(data).strip()
+        text = _SURROGATES_RE.sub("", parser(data)).strip()
     except DeckError:
         raise
     except Exception:

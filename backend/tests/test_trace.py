@@ -26,3 +26,12 @@ def test_records_errors(tmp_path):
     rec = TraceRecorder("Acme", "p", logs_dir=tmp_path)
     rec.record({"type": "agent_error", "id": "moat", "message": "rate limited"})
     assert "rate limited" in rec.finish().read_text()
+
+
+def test_finish_survives_unencodable_text(tmp_path):
+    # scraped pages or LLM output can carry unpaired surrogates; writing the
+    # trace must never crash an otherwise-complete run
+    rec = TraceRecorder("Acme", "pitch with a lone surrogate \ud83d here", logs_dir=tmp_path)
+    rec.record({"type": "agent_done", "id": "market", "output": "ok \udcff report"})
+    text = rec.finish().read_text()
+    assert "report" in text
