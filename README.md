@@ -1,8 +1,8 @@
 # StartupValo
 
-Multi-agent startup valuation engine. Six AI analysts research real market data
-(web search + scraping) and produce a cited Investment Memo with a bear/base/bull
-pre-money valuation.
+Multi-agent startup valuation engine. Upload a pitch deck (.pptx or .pdf) — six AI
+analysts extract the pitch, research real market data (web search + scraping), and
+produce a cited Investment Memo with a bear/base/bull pre-money valuation.
 
 ## Run
 
