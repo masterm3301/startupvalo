@@ -4,13 +4,13 @@ from pathlib import Path
 
 import litellm
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
 from src.engine import pipeline
+from src.engine.deck import DeckError, extract_deck_text
 from src.engine.tools import web_search
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -24,10 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class ValuationRequest(BaseModel):
-    name: str
-    pitch: str
+MAX_DECK_BYTES = 15 * 1024 * 1024
 
 
 def _sse(events):
@@ -36,9 +33,19 @@ def _sse(events):
 
 
 @app.post("/api/valuation")
-def valuation(req: ValuationRequest):
+async def valuation(name: str = Form(...), deck: UploadFile = File(...)):
+    data = await deck.read()
+    if len(data) > MAX_DECK_BYTES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Deck file is larger than {MAX_DECK_BYTES // (1024 * 1024)} MB — upload a smaller file.",
+        )
+    try:
+        pitch = extract_deck_text(deck.filename, data)
+    except DeckError as err:
+        raise HTTPException(status_code=422, detail=str(err))
     return StreamingResponse(
-        _sse(pipeline.run_valuation(req.name, req.pitch)),
+        _sse(pipeline.run_valuation(name, pitch)),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
