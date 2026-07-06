@@ -74,3 +74,14 @@ def test_long_deck_truncated():
     data = _make_pdf([LONG_NOTE * 60])  # well over 15k chars
     text = extract_deck_text("pitch.pdf", data)
     assert len(text) <= MAX_DECK_CHARS
+
+
+def test_parser_deck_error_passes_through(monkeypatch):
+    from src.engine import deck
+
+    def raising_parser(data):
+        raise DeckError("specific parser message")
+
+    monkeypatch.setitem(deck._PARSERS, ".pptx", raising_parser)
+    with pytest.raises(DeckError, match="specific parser message"):
+        extract_deck_text("pitch.pptx", b"anything")

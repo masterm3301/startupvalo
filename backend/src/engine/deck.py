@@ -58,6 +58,8 @@ def extract_deck_text(filename: str, data: bytes) -> str:
         )
     try:
         text = parser(data).strip()
+    except DeckError:
+        raise
     except Exception:
         raise DeckError(
             f"Could not read {filename} — the file appears corrupt or is not a valid {ext} file."
