@@ -81,6 +81,59 @@ def test_retries_on_429_then_succeeds(monkeypatch):
     assert len(attempts) == 3
 
 
+def test_retries_on_tool_use_failed_then_succeeds(monkeypatch):
+    """Groq/llama occasionally emits malformed function-call text, which the API
+    rejects with a 400 'tool_use_failed' error. This is a transient generation
+    glitch, not a real client error, so it should be retried like a 429."""
+    monkeypatch.setattr(llm.time, "sleep", lambda s: None)
+    attempts = []
+
+    def flaky(**kwargs):
+        attempts.append(1)
+        if len(attempts) < 2:
+            err = Exception(
+                '{"error":{"message":"Failed to call a function.",'
+                '"code":"tool_use_failed"}}'
+            )
+            err.status_code = 400
+            raise err
+        return _resp(content="ok")
+
+    monkeypatch.setattr(litellm, "completion", flaky)
+    assert llm.run_agent("sys", "user") == "ok"
+    assert len(attempts) == 2
+
+
+def test_fake_tool_call_text_triggers_corrective_retry(monkeypatch):
+    """Groq/llama sometimes emits a fake tool call as plain text content
+    (e.g. '<function=web_search {...}>') without setting tool_calls at all,
+    and the API doesn't always reject it. run_agent should detect this and
+    nudge the model to retry rather than returning the garbage as the report."""
+    responses = [
+        _resp(content='<function=web_search {"query": "x"}></function>'),
+        _resp(content="real report with a source (http://example.com)"),
+    ]
+
+    def fake_completion(**kwargs):
+        return responses.pop(0)
+
+    monkeypatch.setattr(litellm, "completion", fake_completion)
+    out = llm.run_agent("sys", "user")
+    assert out == "real report with a source (http://example.com)"
+
+
+def test_fake_tool_call_text_gives_up_after_max_retries(monkeypatch):
+    """If the model keeps emitting fake tool-call text, don't loop forever —
+    return the last content after MAX_MALFORMED_RETRIES corrective attempts."""
+
+    def always_fake(**kwargs):
+        return _resp(content='<function=web_search {"query": "x"}></function>')
+
+    monkeypatch.setattr(litellm, "completion", always_fake)
+    out = llm.run_agent("sys", "user")
+    assert out == '<function=web_search {"query": "x"}></function>'
+
+
 def test_non_retryable_error_raises(monkeypatch):
     def bad(**kwargs):
         err = Exception("invalid key")

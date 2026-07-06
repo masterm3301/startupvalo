@@ -6,3 +6,4 @@ node_modules/
 dist/
 logs/
 .DS_Store
+.superpowers/

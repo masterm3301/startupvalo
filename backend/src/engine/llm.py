@@ -1,11 +1,20 @@
 import json
 import os
+import re
 import time
 
 import litellm
 
 MAX_TOOL_CALLS = 8
 MAX_RETRIES = 5
+MAX_MALFORMED_RETRIES = 3
+
+# Groq/llama occasionally emits a pseudo tool-call as plain text (e.g.
+# "<function=web_search {...}>" or "<function(web_search){...}</function>")
+# instead of a real tool_calls entry. The API doesn't always reject this
+# itself (see MAX_RETRIES tool_use_failed handling below for when it does),
+# so we also have to detect it client-side when it slips through as content.
+_FAKE_TOOL_CALL_RE = re.compile(r"<function\b", re.IGNORECASE)
 
 
 def _model() -> str:
@@ -25,7 +34,11 @@ def _completion_with_retry(**kwargs):
             return response
         except Exception as exc:
             status = getattr(exc, "status_code", None)
-            retryable = status == 429 or (status is not None and status >= 500)
+            retryable = (
+                status == 429
+                or (status is not None and status >= 500)
+                or "tool_use_failed" in str(exc)
+            )
             if not retryable or attempt == MAX_RETRIES - 1:
                 raise
             time.sleep(delay)
@@ -44,6 +57,7 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
         {"role": "user", "content": user_message},
     ]
     tools_used = 0
+    malformed_retries = 0
     while True:
         kwargs = {"model": _model(), "messages": messages}
         if tool_schemas and tools_used < MAX_TOOL_CALLS:
@@ -51,7 +65,20 @@ def run_agent(system_prompt, user_message, tool_schemas=None, tool_functions=Non
         msg = _completion_with_retry(**kwargs).choices[0].message
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
-            return msg.content or ""
+            content = msg.content or ""
+            looks_fake = bool(_FAKE_TOOL_CALL_RE.search(content))
+            if looks_fake and malformed_retries < MAX_MALFORMED_RETRIES:
+                malformed_retries += 1
+                messages.append({"role": "assistant", "content": content})
+                messages.append({
+                    "role": "user",
+                    "content": "That was not a valid tool call — do not write function "
+                               "syntax as text. Either use the actual tool-calling "
+                               "mechanism, or write your final report in plain prose "
+                               "with no function/tool syntax at all.",
+                })
+                continue
+            return content
         messages.append({
             "role": "assistant",
             "content": msg.content or "",
