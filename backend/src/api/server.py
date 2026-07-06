@@ -8,6 +8,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
 from src.engine import pipeline
 from src.engine.deck import DeckError, extract_deck_text
@@ -41,7 +42,9 @@ async def valuation(name: str = Form(...), deck: UploadFile = File(...)):
             detail=f"Deck file is larger than {MAX_DECK_BYTES // (1024 * 1024)} MB — upload a smaller file.",
         )
     try:
-        pitch = extract_deck_text(deck.filename, data)
+        # extraction is CPU-bound; keep it off the event loop so concurrent
+        # SSE streams and health checks aren't stalled by a large deck
+        pitch = await run_in_threadpool(extract_deck_text, deck.filename, data)
     except DeckError as err:
         raise HTTPException(status_code=422, detail=str(err))
     return StreamingResponse(
