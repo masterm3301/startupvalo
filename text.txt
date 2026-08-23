@@ -18,4 +18,5 @@ logs/agent-trace.md — A log of how the agents collaborated and where they pull
 docs/valuation-logic.md — A summary of the multipliers and formulas used to calculate the final pre-money valuation.
 
 
+pass = P#h956L86cfZ!Mv
 
